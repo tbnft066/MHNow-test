@@ -188,32 +188,7 @@
         </div>
       </div>
     </div>
-
-    <!-- 錬成CSV作成タブ -->
-    <div id="panel-maker" style="display:none;">
-      <div class="group">
-        <div class="maker-ops">
-          <button id="makerAdd">＋行追加</button>
-          <button id="makerDownload">CSVをダウンロード</button>
-          <button id="makerApply">シミュレーターへ反映</button>
-        </div>
-        <div class="maker-note">※「錬成スキル」は1行あたり最大5つ。空欄は無視されるよ。</div>
-      </div>
-      <div class="makerWrap">
-        <table class="makerTable" id="makerTable">
-          <thead class="sticky-header">
-            <tr>
-              <th style="width:80px;">部位</th>
-              <th style="width:160px;">モンスター</th>
-              <th style="width:200px;">防具名</th>
-              <th>錬成1</th><th>錬成2</th><th>錬成3</th><th>錬成4</th><th>錬成5</th>
-              <th style="width:80px;">操作</th>
-            </tr>
-          </thead>
-          <tbody id="makerBody"></tbody>
-        </table>
-      </div>
-    </div>
+  
   </aside>
 
   <main class="right">
@@ -239,6 +214,31 @@
       <div class="muted" id="listCount" style="margin-top:6px;"></div>
     </div>
   </main>
+
+  <!-- 錬成CSV作成 表 -->
+<div id="panel-maker" style="display:none;">
+  <div class="maker-ops" style="margin-bottom:10px;">
+    <button id="makerAdd">＋行追加</button>
+    <button id="makerDownload">CSVをダウンロード</button>
+    <button id="makerApply">シミュレーターへ反映</button>
+  </div>
+  <div class="maker-note">※「錬成スキル」は1行あたり最大5つ。空欄は無視されるよ。</div>
+  <div class="makerWrap" style="margin-top:10px;">
+    <table class="makerTable sticky-header" id="makerTable">
+      <thead>
+        <tr>
+          <th style="width:80px;">部位</th>
+          <th style="width:160px;">モンスター</th>
+          <th style="width:200px;">防具名</th>
+          <th>錬成1</th><th>錬成2</th><th>錬成3</th><th>錬成4</th><th>錬成5</th>
+          <th style="width:80px;">操作</th>
+        </tr>
+      </thead>
+      <tbody id="makerBody"></tbody>
+    </table>
+  </div>
+</div>
+
 
   <!-- 右上固定の進捗％ -->
   <div id="progressFloating" class="progressFloating" style="display:none;">探索待機中…</div>
@@ -801,3 +801,4 @@ window.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
+
