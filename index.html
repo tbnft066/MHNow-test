@@ -1,59 +1,209 @@
-function addMakerRow(data = null){
-  const tr = document.createElement('tr');
-
-  // ① 部位
-  const tdPart = document.createElement('td');
-  const sel = document.createElement('select');
-  PARTS.forEach(p => {
-    const o = document.createElement('option');
-    o.value = o.textContent = p;
-    sel.appendChild(o);
-  });
-  tdPart.appendChild(sel);
-  tr.appendChild(tdPart);
-
-  // ② モンスター
-  const tdMon = document.createElement('td');
-  const inMon = document.createElement('input');
-  inMon.placeholder = "モンスター名称";
-  tdMon.appendChild(inMon);
-  tr.appendChild(tdMon);
-
-  // ③ 防具名称
-  const tdName = document.createElement('td');
-  const inName = document.createElement('input');
-  inName.placeholder = "防具名称";
-  tdName.appendChild(inName);
-  tr.appendChild(tdName);
-
-  // ④ 錬成スキル 1〜5
-  const driftInputs = [];
-  for (let i = 0; i < 5; i++) {
-    const td = document.createElement('td');
-    const inp = document.createElement('input');
-    inp.setAttribute('list','skills');
-    inp.placeholder = `錬成${i+1}`;
-    td.appendChild(inp);
-    tr.appendChild(td);
-    driftInputs.push(inp);
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<title>モンハンNow スキルシュミレーター</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root{
+    --bg:#0d0d0d; --panel:#171717; --card:#1f1f1f;
+    --text:#ffffff; --muted:#bfbfbf; --accent:#ffd45e; --accent2:#ffb347; --border:#2a2a2a;
+    --hilite:#ffe27a; --skill:#e6e6e6; --drift:#a7dcff;
+    --green:#2ecc71; --purple:#bb86fc; --off:#555; --blue:#4da3ff;
   }
-
-  // ⑤ 操作ボタン
-  const tdOps = document.createElement('td');
-  const del = document.createElement('button');
-  del.textContent = "削除";
-  del.className = 'btnDanger';
-  del.addEventListener('click', ()=> tr.remove());
-  tdOps.appendChild(del);
-  tr.appendChild(tdOps);
-
-  makerBody.appendChild(tr);
-
-  // 既定値を反映
-  if (data) {
-    sel.value = data.part || PARTS[0];
-    inMon.value = data.monster || "";
-    inName.value = data.name || "";
-    (data.drift||[]).slice(0,5).forEach((v,i)=>{ driftInputs[i].value = v; });
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;
+    height:100vh; display:grid; grid-template-columns:460px 1fr;
   }
+  .left{background:var(--panel); border-right:1px solid var(--border);
+    padding:18px; overflow:auto;}
+  .title{color:var(--accent); font-size:20px; font-weight:700; margin-bottom:12px}
+  .tabs{display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap}
+  .tab{
+    padding:8px 12px; border:1px solid var(--border); border-radius:10px;
+    background:#101010; color:#ddd; cursor:pointer; font-weight:700; font-size:14px;
+  }
+  .tab.active{background:var(--accent); color:#111; border-color:#cdbf65}
+  .group{margin-bottom:16px}
+  label{display:block; font-size:12px; color:var(--muted); margin-bottom:6px}
+  input, select, button{
+    width:100%; border:1px solid var(--border); background:#101010; color:#fff;
+    border-radius:8px; padding:9px 10px; font-size:14px;
+  }
+  button{background:var(--accent); color:#111; border:none; font-weight:700; cursor:pointer}
+  button:hover{filter:brightness(1.05)}
+  .rows{display:grid; grid-template-columns:1fr 84px; gap:8px}
+  .status{font-size:12px; color:var(--muted); white-space:pre-line; margin-top:6px}
+  .right{padding:18px; overflow:auto}
+  .grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(420px,1fr)); gap:16px}
+  .card{background:var(--card); border:1px solid var(--border); border-radius:12px;
+    padding:12px 14px; box-shadow:0 0 10px rgba(0,0,0,0.35);}
+  .card h3{margin:0 0 8px 0; color:var(--accent2); font-size:16px}
+  .equip{white-space:pre-wrap; line-height:1.5; color:#eaeaea; margin:0 0 8px 0}
+  .hr{height:1px; background:var(--border); margin:8px 0}
+  .sumAll{display:flex; flex-wrap:wrap; gap:8px 12px; margin:0; padding:0}
+  .badge{
+    list-style:none; border:1px solid var(--border); border-radius:999px;
+    padding:2px 8px; font-size:12px; color:var(--skill); background:#141414; white-space:nowrap;
+  }
+  .badge.hilite{color:#111; background:var(--hilite); border-color:#cdbf65}
+  .makerTable select{ width:100%; padding:6px 8px; font-size:13px }
+  .makerTable input{ width:100%; padding:6px 8px; font-size:13px }
+  .makerWrap{border:1px solid var(--border); border-radius:12px; overflow:auto; max-height:calc(100vh - 200px)}
+  @media(max-width:640px){
+    body{grid-template-columns:1fr; height:auto;}
+    .right{order:3;}
+  }
+</style>
+</head>
+<body>
+  <aside class="left">
+    <div class="title">モンハンNow スキルシュミレーター</div>
+    <div class="tabs">
+      <button class="tab active" id="tab-sim">スキルシミュレーター</button>
+      <button class="tab" id="tab-list">防具スキル一覧</button>
+      <button class="tab" id="tab-maker">錬成CSV作成</button>
+    </div>
+
+    <div class="group">
+      <label>CSVを読み込む（UTF-8）</label>
+      <input type="file" id="csv" accept=".csv" />
+      <div id="status" class="status">未読込</div>
+    </div>
+  </aside>
+
+  <main class="right">
+    <div id="resultsSim" class="grid"></div>
+    <div id="resultsList" style="display:none;">
+      <div class="tableWrap">
+        <table id="armorTable" class="sticky-header">
+          <thead>
+            <tr><th>部位</th><th>モンスター</th><th>防具名</th><th>通常スキル</th><th>錬成スキル</th></tr>
+          </thead>
+          <tbody id="listBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <!-- 🔰 錬成CSV作成タブ 改良版 -->
+  <div id="panel-maker" style="display:none; padding:18px;">
+    <div class="maker-ops" style="margin-bottom:10px; display:flex; gap:8px;">
+      <button id="makerDownload">CSVをダウンロード</button>
+      <button id="makerApply">シミュレーターへ反映</button>
+    </div>
+    <div class="maker-note" style="color:#aaa; font-size:12px;">
+      ＋列追加ボタンで錬成スキル欄を増やせるよ。
+    </div>
+    <div class="makerWrap" style="margin-top:10px;">
+      <table class="makerTable sticky-header" id="makerTable">
+        <thead>
+          <tr>
+            <th style="width:60px;">部位</th>
+            <th style="width:160px;">モンスター</th>
+            <th colspan="3">錬成スキル</th>
+            <th style="width:80px;">操作</th>
+          </tr>
+        </thead>
+        <tbody id="makerBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+<script>
+const PARTS=["頭","胴","腕","腰","脚"];
+let armors=[]; let skillSet=new Set(); let driftSkillOptions=[];
+
+/* === 錬成スキル一覧をGitHubから読み込む === */
+function loadDriftSkillList(){
+  fetch('錬成スキル一覧.csv')
+    .then(r=>r.text())
+    .then(t=>{
+      driftSkillOptions=t.split(/\r?\n/).map(v=>v.trim()).filter(Boolean);
+      buildMakerTable();
+    })
+    .catch(e=>{
+      console.error("錬成スキル一覧読み込み失敗",e);
+      driftSkillOptions=[];
+      buildMakerTable();
+    });
 }
+
+/* === 錬成CSV作成テーブル構築 === */
+function buildMakerTable(){
+  const body=document.getElementById('makerBody');
+  body.innerHTML='';
+  PARTS.forEach(part=>{
+    const tr=document.createElement('tr');
+    const tdPart=document.createElement('td'); tdPart.textContent=part; tr.appendChild(tdPart);
+    const tdMon=document.createElement('td'); const inMon=document.createElement('input');
+    inMon.placeholder="モンスター名"; tdMon.appendChild(inMon); tr.appendChild(tdMon);
+    for(let i=0;i<3;i++) tr.appendChild(makeDriftSelectTd());
+    const tdAdd=document.createElement('td');
+    const btn=document.createElement('button'); btn.textContent="＋列追加";
+    btn.addEventListener('click',()=>tr.insertBefore(makeDriftSelectTd(),tdAdd));
+    tdAdd.appendChild(btn); tr.appendChild(tdAdd);
+    body.appendChild(tr);
+  });
+}
+
+/* === 錬成スキル選択セル生成 === */
+function makeDriftSelectTd(){
+  const td=document.createElement('td');
+  const sel=document.createElement('select');
+  const empty=document.createElement('option'); empty.value=''; empty.textContent='—';
+  sel.appendChild(empty);
+  driftSkillOptions.forEach(s=>{
+    const opt=document.createElement('option');
+    opt.value=s; opt.textContent=s; sel.appendChild(opt);
+  });
+  td.appendChild(sel);
+  return td;
+}
+
+/* === CSVダウンロード === */
+document.getElementById('makerDownload').addEventListener('click',()=>{
+  const rows=collectMakerRows();
+  const header=['部位','モンスター名称','防具名称','スキル1','スキル1Lv','スキル2','スキル2Lv','スキル3','スキル3Lv','錬成1','錬成2','錬成3','錬成4','錬成5','錬成6','錬成7','錬成8','錬成9','錬成10'];
+  const csvLines=[header.join(',')];
+  rows.forEach(r=>{
+    const drifts=[...r.drift]; while(drifts.length<10) drifts.push('');
+    const line=[r.part,r.monster,'','','','','','','',...drifts].map(csvEscape).join(',');
+    csvLines.push(line);
+  });
+  const blob=new Blob([csvLines.join('\n')],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download='custom_drift.csv';
+  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  document.getElementById('status').textContent="錬成CSVをダウンロードしたよ！";
+});
+function collectMakerRows(){
+  const out=[]; [...document.querySelectorAll('#makerBody tr')].forEach(tr=>{
+    const part=tr.cells[0].textContent;
+    const monster=tr.cells[1].querySelector('input')?.value.trim()||"";
+    const drift=[...tr.querySelectorAll('select')].map(s=>s.value).filter(Boolean);
+    out.push({part,monster,drift});
+  }); return out;
+}
+function csvEscape(s){const t=String(s??'');return(t.includes(',')||t.includes('"')||t.includes('\n'))?`"${t.replace(/"/g,'""')}"`:t;}
+
+/* === シミュレーターへ反映 === */
+document.getElementById('makerApply').addEventListener('click',()=>{
+  const rows=collectMakerRows();
+  for(const r of rows){
+    let a=armors.find(x=>x.part===r.part&&x.monster===r.monster);
+    if(!a){a={part:r.part,monster:r.monster,name:r.monster,normal:[],drift:[]}; armors.push(a);}
+    const set=new Set(a.drift); r.drift.forEach(d=>set.add(d)); a.drift=[...set];
+  }
+  document.getElementById('status').textContent="錬成内容をシミュレーターに反映したよ！";
+});
+
+/* === 初期化 === */
+window.addEventListener('DOMContentLoaded',()=>{
+  loadDriftSkillList();
+});
+</script>
+</body>
+</html>
