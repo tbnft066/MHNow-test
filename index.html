@@ -362,8 +362,13 @@ toggleListDrift.addEventListener('click', ()=>{
   listDriftOnly = !listDriftOnly;
   toggleListDrift.classList.toggle('on', listDriftOnly);
   toggleListDrift.classList.toggle('off', !listDriftOnly);
-  buildListTable(); // 再描画
+  
+  // ここを変更：buildListTable() ではなく「再描画関数」だけ呼ぶ！
+  if (typeof renderListTable === "function") {
+    renderListTable();  // ← フィルターを保持したまま再描画！
+  }
 });
+
 
 /* ====== CSVをページ上で読み込む ====== */
 document.getElementById('csv').addEventListener('change', (e)=>{
@@ -810,6 +815,7 @@ window.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
+
 
 
 
