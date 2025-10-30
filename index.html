@@ -121,7 +121,24 @@
     padding:8px 12px; font-size:12px; color:var(--muted); z-index:9999;
     pointer-events:none;
   }
+  
+.list-controls {
+  display: flex;
+  flex-direction: column; /* ←★ここで縦並びに変更！ */
+  gap: 10px;              /* ←★上下の間隔を少し広げる */
+  position: sticky;
+  top: 0;
+  background: var(--panel);
+  padding-bottom: 8px;
+  z-index: 2;
+  align-items: stretch;   /* ←★セレクトの幅を揃える */
+}
 
+.list-controls select {
+  width: 100%;
+}
+
+  
   /* 一覧タブのテーブル */
   .list-controls{display:flex; gap:8px; position:sticky; top:0; background:var(--panel); padding-bottom:8px; z-index:2; align-items:center}
   .tableWrap{border:1px solid var(--border); border-radius:12px; overflow:auto; max-height:calc(100vh - 100px)}
