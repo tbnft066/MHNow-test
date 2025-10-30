@@ -565,19 +565,6 @@ if (driftEnabled) {
   }
 }
 
-// 🟣 このコンボで実際に反映された錬成スキル一覧
-if (driftEnabled) {
-  for (const p of PARTS) {
-    const item = combo[p];
-    if (!item) continue;
-    // 条件スキルに一致した錬成のみ表示
-    const matched = conds.find(c => item.drift.includes(c.skill));
-    if (matched) {
-      driftApplied.push({ part: p, skill: matched.skill });
-    }
-  }
-}
-
 // 🩵 錬成スキル表示を整形（部位名と一緒に）
 let driftText = "";
 if (driftApplied.length) {
@@ -900,6 +887,7 @@ window.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
+
 
 
 
