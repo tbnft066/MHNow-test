@@ -571,7 +571,7 @@ const skills = Object.entries(totalMap)
       else score += 10;
     }
     const partsUsed = (html.match(/：[^<>\n]+/g) || []).filter(t => !/：\s*<\/?/.test(t)).length;
-    score += (5 - partsUsed) * 200;
+    score += (5 - partsUsed) * 5;
     return { html, score };
   });
   scoredHits.sort((a, b) => b.score - a.score);
@@ -824,5 +824,6 @@ window.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
+
 
 
