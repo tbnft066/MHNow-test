@@ -500,24 +500,47 @@ function runSearch(){
     checked++;
     const totalMap = {};
     for (const p of PARTS) {
-      const item = combo[p];
-      if (!item) continue;
-      for (const { name, lv } of item.normal) totalMap[name] = (totalMap[name] || 0) + lv;
-      if (driftEnabled) for (const ds of item.drift) totalMap[ds] = (totalMap[ds] || 0) + 1;
+  const item = combo[p];
+  if (!item) continue;
+
+  // 通常スキルの加算
+  for (const { name, lv } of item.normal) {
+    totalMap[name] = (totalMap[name] || 0) + lv;
+  }
+
+  // 錬成スキル（drift）の処理
+  if (driftEnabled && item.drift.length > 0) {
+    // 検索条件に一致するスキルだけを1つ選ぶ
+    const matched = conds.find(c => item.drift.includes(c.skill));
+    if (matched) {
+      totalMap[matched.skill] = (totalMap[matched.skill] || 0) + 1;
+    } else {
+      // 一致しない場合はスキップ（その防具の錬成は無効）
+      continue;
     }
-    // 条件Lv判定
-    const ok = conds.every(c => (totalMap[c.skill] || 0) >= c.level);
-    if (!ok) continue;
+  }
+}
+
 
     const comboKey = PARTS.map(p => combo[p]?.name || "").join("|");
     if (shownCombos.has(comboKey)) continue;
     shownCombos.add(comboKey);
 
     const text = PARTS.map(p => `${p}：${combo[p]?.name || ""}`).join("\n");
-    const skills = Object.entries(totalMap)
-      .sort((a, b) => b[1] - a[1])
-      .map(([n, l]) => `<li class="badge${conds.some(c => c.skill === n) ? " hilite" : ""}">${n} Lv${l}</li>`)
-      .join("");
+    // スキルリストを条件一致に合わせて整形
+const skills = Object.entries(totalMap)
+  .filter(([n]) => {
+    // 錬成スキルの場合は検索条件に一致したものだけ表示
+    if (driftEnabled) {
+      const isDriftSkill = armors.some(a => a.drift.includes(n));
+      if (isDriftSkill && !conds.some(c => c.skill === n)) return false;
+    }
+    return true;
+  })
+  .sort((a, b) => b[1] - a[1])
+  .map(([n, l]) => `<li class="badge${conds.some(c => c.skill === n) ? " hilite" : ""}">${n} Lv${l}</li>`)
+  .join("");
+
 
     hits.push(`<h3>#${hits.length + 1}</h3><p class="equip">${text}</p><div class="hr"></div><ul class="sumAll">${skills}</ul>`);
     if (hits.length >= 300) break outer;
@@ -801,4 +824,5 @@ window.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
+
 
