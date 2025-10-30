@@ -236,20 +236,36 @@
     </div>
 
     <!-- 一覧タブの操作 -->
-    <div id="panel-list" style="display:none;">
-      <div class="group">
-        <label>フィルター</label>
-        <div class="list-controls">
-          <select id="flt-part">
-            <option value="">部位：すべて</option>
-            <option>頭</option>
-            <option>胴</option>
-            <option>腕</option>
-            <option>腰</option>
-            <option>脚</option>
-          </select>
-          <input id="flt-skill" placeholder="スキル名で検索（部分一致／通常・錬成）" />
-        </div>
+<div id="panel-list" style="display:none;">
+  <div class="group">
+    <label>フィルター</label>
+    <div class="list-controls">
+      <select id="flt-part">
+        <option value="">部位：すべて</option>
+        <option>頭</option>
+        <option>胴</option>
+        <option>腕</option>
+        <option>腰</option>
+        <option>脚</option>
+      </select>
+
+      <select id="flt-monster">
+        <option value="">モンスター：すべて</option>
+      </select>
+
+      <select id="flt-skill">
+        <option value="">スキル：すべて</option>
+      </select>
+    </div>
+
+    <!-- 「錬成のみ」トグル -->
+    <div class="toggle-block" title="錬成スキルだけ表示" style="margin-top: 10px;">
+      <div class="dot blue off" id="toggleListDrift" aria-label="錬成フィルタ"></div>
+      <span class="hint">錬成のみ</span>
+    </div>
+  </div>
+</div>
+
 
         <!-- 「錬成のみ」トグル -->
         <div class="toggle-block" title="錬成スキルだけ表示" style="margin-top: 10px;">
@@ -675,52 +691,68 @@ function buildListTable(){
   const body = document.getElementById('listBody');
   const countEl = document.getElementById('listCount');
   const fltPart = document.getElementById('flt-part');
+  const fltMonster = document.getElementById('flt-monster');
   const fltSkill = document.getElementById('flt-skill');
 
+  // === モンスター・スキルの候補を作成 ===
+  const monsters = [...new Set(armors.map(a => a.monster).filter(Boolean))].sort();
+  const skills = [...new Set(
+    armors.flatMap(a => [
+      ...a.normal.map(s => s.name),
+      ...a.drift
+    ])
+  )].sort();
+
+  fltMonster.innerHTML = `<option value="">モンスター：すべて</option>` + monsters.map(m => `<option>${m}</option>`).join("");
+  fltSkill.innerHTML = `<option value="">スキル：すべて</option>` + skills.map(s => `<option>${s}</option>`).join("");
+
   function render(){
-    const kw = (fltSkill.value||"").trim();
-    const part = fltPart.value||"";
-    const rx = kw ? new RegExp(escapeRegExp(kw), 'i') : null;
+    const partVal = fltPart.value || "";
+    const monVal = fltMonster.value || "";
+    const skillVal = fltSkill.value || "";
 
     const list = armors.filter(a=>{
-      if(part && a.part!==part) return false;
+      if (partVal && a.part !== partVal) return false;
+      if (monVal && a.monster !== monVal) return false;
 
-      if(listDriftOnly){
-        // 錬成のみ
-        if(rx){
-          return a.drift.length>0 && rx.test(a.drift.join(", "));
-        }else{
-          return a.drift.length>0;
+      if (listDriftOnly) {
+        // 錬成スキルのみ
+        if (skillVal) {
+          return a.drift.includes(skillVal);
         }
-      }else{
-        // 通常フィルタ
-        if(!rx) return true;
-        const normalStr = a.normal.map(s=>`${s.name}Lv${s.lv}`).join(", ");
-        const driftStr  = a.drift.join(", ");
-        return rx.test(a.name) || rx.test(a.monster||"") || rx.test(normalStr) || rx.test(driftStr);
+        return a.drift.length > 0;
+      } else {
+        if (!skillVal) return true;
+        const allSkills = [
+          ...a.normal.map(s => s.name),
+          ...a.drift
+        ];
+        return allSkills.includes(skillVal);
       }
     });
 
+    // === テーブル描画 ===
     body.innerHTML = list.map(a=>{
-  const normalStr = a.normal.map(s=>`${escapeHTML(s.name)}Lv${s.lv}`).join(", ");
-  const driftStr  = a.drift.length ? a.drift.map(escapeHTML).join(", ") : "—";
-  return `<tr>
-    <td data-label="部位">${escapeHTML(a.part)}</td>
-    <td data-label="モンスター">${escapeHTML(a.monster||"")}</td>
-    <td data-label="防具名">${escapeHTML(a.name)}</td>
-    <td data-label="通常スキル" class="td-skills">${normalStr||"—"}</td>
-    <td data-label="錬成スキル" class="td-skills">${driftStr}</td>
-  </tr>`;
-}).join("");
-
+      const normalStr = a.normal.map(s=>`${escapeHTML(s.name)}Lv${s.lv}`).join(", ");
+      const driftStr  = a.drift.length ? a.drift.map(escapeHTML).join(", ") : "—";
+      return `<tr>
+        <td data-label="部位">${escapeHTML(a.part)}</td>
+        <td data-label="モンスター">${escapeHTML(a.monster||"")}</td>
+        <td data-label="防具名">${escapeHTML(a.name)}</td>
+        <td data-label="通常スキル" class="td-skills">${normalStr||"—"}</td>
+        <td data-label="錬成スキル" class="td-skills">${driftStr}</td>
+      </tr>`;
+    }).join("");
 
     countEl.textContent = `${list.length} 件表示（総計 ${armors.length}）` + (listDriftOnly ? "（錬成のみ）" : "");
   }
 
   fltPart.addEventListener('change', render);
-  fltSkill.addEventListener('input', render);
+  fltMonster.addEventListener('change', render);
+  fltSkill.addEventListener('change', render);
   render();
 }
+
 
 /* ====== ユーティリティ ====== */
 function cardHTML(title, body){
@@ -770,6 +802,7 @@ window.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
+
 
 
 
