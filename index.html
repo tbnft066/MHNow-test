@@ -760,6 +760,15 @@ function buildListTable(){
     countEl.textContent = `${list.length} 件表示（総計 ${armors.length}）` + (listDriftOnly ? "（錬成のみ）" : "");
   }
 
+  // ←★ここで外から呼べるように保存！
+  window.renderListTable = render;
+
+  fltPart.addEventListener('change', render);
+  fltMonster.addEventListener('change', render);
+  fltSkill.addEventListener('change', render);
+  render();
+}
+
   fltPart.addEventListener('change', render);
   fltMonster.addEventListener('change', render);
   fltSkill.addEventListener('change', render);
@@ -815,6 +824,7 @@ window.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
+
 
 
 
