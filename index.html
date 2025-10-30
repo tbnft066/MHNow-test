@@ -779,25 +779,30 @@ function adjustLayoutForMobile() {
 }
 window.addEventListener("resize", adjustLayoutForMobile);
 
-/* ====== ページ読み込み時にCSVを自動読込 ====== */
+// ✅ ページ読み込み後の初期処理（この位置でOK！）
 window.addEventListener('DOMContentLoaded', () => {
   showTab('sim');
   adjustLayoutForMobile();
+
+  // CSVの自動読み込み
   fetch('スキル一覧.csv')
     .then(res => res.text())
     .then(text => {
       parseCSV(text);
       statusEl.textContent = `初期データ読込完了：${armors.length}件（スキル候補 ${skillSet.size}）`;
-      populateMakerFromArmors();
+      populateMakerFromArmors(); // 定義済みなのでOK
     })
     .catch(err => {
       console.error('初期CSV読み込みエラー:', err);
       statusEl.textContent = "初期CSV読み込みに失敗しました。";
-      addMakerRow();
+      addMakerRow(); // 定義済みなのでOK
     });
-  addMakerRow();
+
+  // 初期空行
+  addMakerRow(); // 定義済みなのでOK
 });
 </script>
 </body>
 </html>
+
 
