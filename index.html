@@ -546,7 +546,7 @@ const skills = Object.entries(totalMap)
     if (hits.length >= 300) break outer;
   }
 
-  // スコアリング（条件スキルを最優先＋空き枠ボーナス）
+  // ===== スコアリング（スキル一致・Lv一致を最優先） =====
 const scoredHits = hits.map(html => {
   const lvMap = {};
   const matches = [...html.matchAll(/([^<>\s]+) Lv(\d+)/g)];
@@ -555,7 +555,7 @@ const scoredHits = hits.map(html => {
     lvMap[name] = (lvMap[name] || 0) + lv;
   }
 
-  // 🔹 検索スキルの条件を再取得
+  // 条件スキル取得
   const conds = [];
   for (let i = 0; i < 8; i++) {
     const s = (document.getElementById(`s_${i}`)?.value || "").trim();
@@ -567,26 +567,35 @@ const scoredHits = hits.map(html => {
 
   let score = 0;
 
-  // 🔸 条件スキルを最優先でスコア付け
+  // 🟡 条件スキル一致の優先度を大幅アップ
   for (const c of conds) {
     const got = lvMap[c.skill] || 0;
-    const diff = got - c.level;
-    if (got === 0) score -= 300;         // 該当スキルなしは大減点
-    else if (diff < 0) score -= 100 * Math.abs(diff); // 足りないほど減点
-    else if (diff === 0) score += 500;   // ピッタリ一致は大加点
-    else score += 50 / diff;             // ちょっと超過は軽い加点
+    if (got === 0) {
+      score -= 1000; // 該当スキルなしは強く減点
+    } else if (got === c.level) {
+      score += 2000; // Lv一致は最上位加点！
+    } else if (got > c.level) {
+      score += 1500 - (got - c.level) * 100; // 少し超過なら少し減点
+    } else {
+      score -= (c.level - got) * 300; // 足りないほど大きく減点
+    }
   }
 
-  // 🔸 条件外スキルの影響を軽めに（以前のように合計Lvではなく補助点）
+  // 🟢 条件スキルがすべて揃っていない場合は強制減点
+  const missing = conds.filter(c => (lvMap[c.skill] || 0) === 0).length;
+  if (missing > 0) score -= 2000 * missing;
+
+  // 🟣 条件外スキルは軽く補助点
   const otherSkills = Object.keys(lvMap).filter(n => !conds.some(c => c.skill === n));
   score += otherSkills.length * 5;
 
-  // 🔸 空き枠ボーナス
+  // 💠 空き枠ボーナスは控えめに（影響を小さく）
   const partsUsed = (html.match(/：[^<>\n]+/g) || []).filter(t => !/：\s*<\/?/.test(t)).length;
-  score += (5 - partsUsed) * 200;
+  score += (5 - partsUsed) * 50;
 
   return { html, score };
 });
+
 
   scoredHits.sort((a, b) => b.score - a.score);
   const topHits = scoredHits.slice(0, 50);
@@ -837,6 +846,7 @@ window.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
+
 
 
 
