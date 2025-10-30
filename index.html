@@ -344,23 +344,83 @@ window.addEventListener('DOMContentLoaded',()=>{
 
   document.getElementById('makerAdd').onclick=()=>addMakerRow();
 
-fetch('スキル一覧.csv')
-  .then(res=>res.text())
-  .then(text=>{
-    parseCSV(text);
-    buildSkillInputs([...skillSet].sort()); // ←★この行を追加！
-    statusEl.textContent=`初期データ読込完了：${armors.length}件`;
-    populateMakerFromArmors();
-  })
-  .catch(err=>{
-    console.error('初期CSV読み込みエラー:',err);
-    statusEl.textContent="初期CSV読み込みに失敗しました。";
-    addMakerRow();
-  });
+  /* ====== CSVの自動読み込み ====== */
+  fetch('スキル一覧.csv')
+    .then(res=>res.text())
+    .then(text=>{
+      parseCSV(text);
+      buildSkillInputs([...skillSet].sort()); // ← ここが重要！
+      statusEl.textContent=`初期データ読込完了：${armors.length}件`;
+      populateMakerFromArmors();
+    })
+    .catch(err=>{
+      console.error('初期CSV読み込みエラー:',err);
+      statusEl.textContent="初期CSV読み込みに失敗しました。";
+      addMakerRow();
+    });
 });
+
+/* ====== CSV解析 ====== */
+function parseCSV(text){
+  const lines = text.replace(/\r\n/g,"\n").replace(/\r/g,"\n").split("\n").filter(Boolean);
+  const rows = lines.map(line => splitCsvLine(line));
+  armors = [];
+  skillSet = new Set();
+
+  // ヘッダーを除いた本体行を処理
+  for(let i=1;i<rows.length;i++){
+    const r = rows[i];
+    if(r.length<3) continue;
+    const part = r[0], monster = r[1], name = r[2];
+    if(!part || !name) continue;
+
+    const normal = [];
+    for(let k=0;k<3;k++){
+      const s  = r[3 + k*2];
+      const lv = parseInt(r[4 + k*2],10);
+      if(s && !isNaN(lv) && lv>0){
+        normal.push({name:s, lv});
+        skillSet.add(s);
+      }
+    }
+
+    const drift = [];
+    for(let j=0;j<10;j++){
+      const ds = r[9 + j];
+      if(ds){
+        drift.push(ds);
+        skillSet.add(ds);
+      }
+    }
+
+    armors.push({part, monster, name, normal, drift});
+  }
+
+  buildSkillInputs([...skillSet].sort());
+  buildListTable();
+}
+
+/* ====== CSV1行パース ====== */
+function splitCsvLine(line){
+  const out=[]; let cur=""; let inQ=false;
+  for(let i=0;i<line.length;i++){
+    const ch=line[i];
+    if(ch==='"'){
+      if(inQ && line[i+1]==='"'){ cur+='"'; i++; }
+      else inQ=!inQ;
+    }else if(ch===',' && !inQ){
+      out.push(cur.trim()); cur="";
+    }else{
+      cur+=ch;
+    }
+  }
+  out.push(cur.trim());
+  return out;
+}
 </script>
 </body>
 </html>
+
 
 
 
