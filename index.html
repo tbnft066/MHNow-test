@@ -546,34 +546,48 @@ const skills = Object.entries(totalMap)
     if (hits.length >= 300) break outer;
   }
 
-  // スコアリング（空き枠ボーナス＝部位未使用分×200点）
-  const scoredHits = hits.map(html => {
-    const lvMap = {};
-    const matches = [...html.matchAll(/([^<>\s]+) Lv(\d+)/g)];
-    for (const m of matches) {
-      const name = m[1], lv = parseInt(m[2]);
-      lvMap[name] = (lvMap[name] || 0) + lv;
-    }
-    let score = Object.values(lvMap).reduce((s, v) => s + v, 0);
-    const conds = [];
-    for (let i = 0; i < 8; i++) {
-      const s = (document.getElementById(`s_${i}`)?.value || "").trim();
-      const lv = parseInt(document.getElementById(`lv_${i}`)?.value || "", 10);
-      if (s && !isNaN(lv) && lv > 0) conds.push({ skill: s, level: lv });
-    }
-    if (rockOnEnabled && !conds.some(c => c.skill === "ロックオン"))
-      conds.push({ skill: "ロックオン", level: 1 });
+  // スコアリング（条件スキルを最優先＋空き枠ボーナス）
+const scoredHits = hits.map(html => {
+  const lvMap = {};
+  const matches = [...html.matchAll(/([^<>\s]+) Lv(\d+)/g)];
+  for (const m of matches) {
+    const name = m[1], lv = parseInt(m[2]);
+    lvMap[name] = (lvMap[name] || 0) + lv;
+  }
 
-    for (const c of conds) {
-      const got = lvMap[c.skill] || 0;
-      if (got < c.level) score -= 100;
-      else if (got > c.level) score -= (got - c.level) * 3;
-      else score += 10;
-    }
-    const partsUsed = (html.match(/：[^<>\n]+/g) || []).filter(t => !/：\s*<\/?/.test(t)).length;
-    score += (5 - partsUsed) * 5;
-    return { html, score };
-  });
+  // 🔹 検索スキルの条件を再取得
+  const conds = [];
+  for (let i = 0; i < 8; i++) {
+    const s = (document.getElementById(`s_${i}`)?.value || "").trim();
+    const lv = parseInt(document.getElementById(`lv_${i}`)?.value || "", 10);
+    if (s && !isNaN(lv) && lv > 0) conds.push({ skill: s, level: lv });
+  }
+  if (rockOnEnabled && !conds.some(c => c.skill === "ロックオン"))
+    conds.push({ skill: "ロックオン", level: 1 });
+
+  let score = 0;
+
+  // 🔸 条件スキルを最優先でスコア付け
+  for (const c of conds) {
+    const got = lvMap[c.skill] || 0;
+    const diff = got - c.level;
+    if (got === 0) score -= 300;         // 該当スキルなしは大減点
+    else if (diff < 0) score -= 100 * Math.abs(diff); // 足りないほど減点
+    else if (diff === 0) score += 500;   // ピッタリ一致は大加点
+    else score += 50 / diff;             // ちょっと超過は軽い加点
+  }
+
+  // 🔸 条件外スキルの影響を軽めに（以前のように合計Lvではなく補助点）
+  const otherSkills = Object.keys(lvMap).filter(n => !conds.some(c => c.skill === n));
+  score += otherSkills.length * 5;
+
+  // 🔸 空き枠ボーナス
+  const partsUsed = (html.match(/：[^<>\n]+/g) || []).filter(t => !/：\s*<\/?/.test(t)).length;
+  score += (5 - partsUsed) * 200;
+
+  return { html, score };
+});
+
   scoredHits.sort((a, b) => b.score - a.score);
   const topHits = scoredHits.slice(0, 50);
 
@@ -823,6 +837,7 @@ window.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
+
 
 
 
