@@ -528,30 +528,31 @@ for (const [_, list] of activeParts) {
   floatEl.style.display = "block";
 
   outer: for (const combo of generateCombos(activeParts)) {
-    checked++;
-    const totalMap = {};
-    // === スキル集計（錬成は条件に合致したもののみカウント） ===
-const totalMap = {};
+  checked++;
 
-for (const p of PARTS) {
-  const item = combo[p];
-  if (!item) continue;
+  // === スキル集計（錬成は条件に合致したもののみカウント） ===
+  const totalMap = {};
 
-  // 通常スキルはすべて集計
-  for (const { name, lv } of item.normal) {
-    totalMap[name] = (totalMap[name] || 0) + lv;
-  }
+  for (const p of PARTS) {
+    const item = combo[p];
+    if (!item) continue;
 
-  // 漂移錬成ONなら、検索条件に含まれる錬成スキルだけ集計
-  if (driftEnabled && item.drift && item.drift.length) {
-    const matchedDrift = item.drift.filter(ds =>
-      conds.some(c => c.skill === ds)
-    );
-    for (const ds of matchedDrift) {
-      totalMap[ds] = (totalMap[ds] || 0) + 1;
+    // 通常スキルはすべて集計
+    for (const { name, lv } of item.normal) {
+      totalMap[name] = (totalMap[name] || 0) + lv;
+    }
+
+    // 漂移錬成ONなら、検索条件に含まれる錬成スキルだけ集計
+    if (driftEnabled && item.drift && item.drift.length) {
+      const matchedDrift = item.drift.filter(ds =>
+        conds.some(c => c.skill === ds)
+      );
+      for (const ds of matchedDrift) {
+        totalMap[ds] = (totalMap[ds] || 0) + 1;
+      }
     }
   }
-}
+
 
 
     // === 条件Lv満たすか ===
@@ -751,6 +752,7 @@ window.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
+
 
 
 
