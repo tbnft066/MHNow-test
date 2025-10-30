@@ -586,21 +586,40 @@ if (driftEnabled) {
 
     // 条件に一致する錬成スキルを抽出
     const matched = item.drift.filter(ds =>
+      conds.some(c => c.skill === ds)// ★ 錬成スキル一覧を追加表示（漂移錬成ON時のみ・縦並び＋空欄表示）
+let driftText = "";
+
+if (driftEnabled) {
+  const usedDriftMap = {}; // {部位: 採用された錬成スキル名}
+
+  // 各部位ごとに条件スキルと照合
+  for (const p of PARTS) {
+    const item = combo[p];
+    if (!item || !item.drift?.length) continue;
+
+    const matched = item.drift.filter(ds =>
       conds.some(c => c.skill === ds)
     );
 
-    // 部位ごとに最初にヒットしたスキルを採用
     if (matched.length > 0) {
       usedDriftMap[p] = matched[0];
     }
   }
 
-  // 表示用にまとめる
-  const driftAll = Object.entries(usedDriftMap).map(([part, skill]) => `${part}：${skill}`);
-  if (driftAll.length > 0) {
-    driftText = `<div class="drifts">錬成スキル：${driftAll.map(escapeHTML).join("、 ")}</div>`;
-  }
+  // 表示構築（全5部位を縦並びで表示）
+  const driftLines = PARTS.map(p => {
+    const skill = usedDriftMap[p] ? escapeHTML(usedDriftMap[p]) : "";
+    return `<div>${p}：${skill}</div>`;
+  }).join("");
+
+  driftText = `
+    <div class="drifts">
+      <div style="margin-top:4px;">錬成スキル：</div>
+      <div style="margin-top:2px; line-height:1.4;">${driftLines}</div>
+    </div>
+  `;
 }
+
 
 
 // === カード出力 ===
@@ -764,6 +783,7 @@ window.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
+
 
 
 
