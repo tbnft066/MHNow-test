@@ -530,13 +530,29 @@ for (const [_, list] of activeParts) {
   outer: for (const combo of generateCombos(activeParts)) {
     checked++;
     const totalMap = {};
-    for (const p of PARTS) {
-      const item = combo[p];
-      if (!item) continue;
-      for (const { name, lv } of item.normal) totalMap[name] = (totalMap[name] || 0) + lv;
-      if (driftEnabled)
-        for (const ds of item.drift) totalMap[ds] = (totalMap[ds] || 0) + 1;
+    // === スキル集計（錬成は条件に合致したもののみカウント） ===
+const totalMap = {};
+
+for (const p of PARTS) {
+  const item = combo[p];
+  if (!item) continue;
+
+  // 通常スキルはすべて集計
+  for (const { name, lv } of item.normal) {
+    totalMap[name] = (totalMap[name] || 0) + lv;
+  }
+
+  // 漂移錬成ONなら、検索条件に含まれる錬成スキルだけ集計
+  if (driftEnabled && item.drift && item.drift.length) {
+    const matchedDrift = item.drift.filter(ds =>
+      conds.some(c => c.skill === ds)
+    );
+    for (const ds of matchedDrift) {
+      totalMap[ds] = (totalMap[ds] || 0) + 1;
     }
+  }
+}
+
 
     // === 条件Lv満たすか ===
     const ok = conds.every(c => (totalMap[c.skill] || 0) >= c.level);
@@ -735,6 +751,7 @@ window.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
+
 
 
 
