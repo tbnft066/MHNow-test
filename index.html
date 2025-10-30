@@ -220,6 +220,56 @@ function buildListTable(){
   render();
 }
 
+  /* ====== スキル検索枠（8枠まで自動生成） ====== */
+function buildSkillInputs(skillList){
+  const rows = document.getElementById('rows');
+  rows.innerHTML = "";
+  const dlId="skills";
+  let old = document.getElementById(dlId);
+  if(old) old.remove();
+  const dl = document.createElement('datalist');
+  dl.id = dlId;
+  skillList.forEach(s=>{
+    const o=document.createElement('option');
+    o.value=s;
+    dl.appendChild(o);
+  });
+  document.body.appendChild(dl);
+
+  for(let i=0;i<8;i++){
+    const name=document.createElement('input');
+    name.type="text";
+    name.placeholder="スキル名";
+    name.setAttribute("list",dlId);
+    name.id=`s_${i}`;
+    const lv=document.createElement('input');
+    lv.type="number";
+    lv.min="1";
+    lv.max="5";
+    lv.placeholder="Lv";
+    lv.id=`lv_${i}`;
+    lv.disabled=true;
+
+    const syncDisable=()=>{
+      const has=(name.value||"").trim().length>0;
+      lv.disabled=!has;
+      if(!has) lv.value="";
+    };
+    name.addEventListener('input',syncDisable);
+    name.addEventListener('change',syncDisable);
+
+    rows.appendChild(name);
+    rows.appendChild(lv);
+  }
+
+  // ボタン再登録（古いイベントを避ける）
+  const newBtn=document.getElementById('search').cloneNode(true);
+  document.getElementById('search').replaceWith(newBtn);
+  newBtn.id='search';
+  newBtn.addEventListener('click', runSearch);
+}
+
+
 /* ====== 錬成CSV作成 ====== */
 function addMakerRow(data=null){
   const tr = document.createElement('tr');
@@ -294,10 +344,11 @@ window.addEventListener('DOMContentLoaded',()=>{
 
   document.getElementById('makerAdd').onclick=()=>addMakerRow();
 
-  fetch('スキル一覧.csv')
+fetch('スキル一覧.csv')
   .then(res=>res.text())
   .then(text=>{
     parseCSV(text);
+    buildSkillInputs([...skillSet].sort()); // ←★この行を追加！
     statusEl.textContent=`初期データ読込完了：${armors.length}件`;
     populateMakerFromArmors();
   })
@@ -306,11 +357,11 @@ window.addEventListener('DOMContentLoaded',()=>{
     statusEl.textContent="初期CSV読み込みに失敗しました。";
     addMakerRow();
   });
-  addMakerRow();
-});
+
 </script>
 </body>
 </html>
+
 
 
 
