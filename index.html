@@ -574,37 +574,33 @@ const skills = Object.entries(totalMap)
   .map(([n, l]) => `<li class="badge${conds.some(c => c.skill === n) ? " hilite" : ""}">${n} Lv${l}</li>`)
   .join("");
 
-// ★ 錬成スキル一覧を追加表示（各部位で採用された錬成スキルのみ表示）
-let driftAll = [];
-const usedDriftMap = {}; // {部位: 採用された錬成スキル名}
+// ★ 錬成スキル一覧を追加表示（漂移錬成ON時のみ・各部位1件まで）
+let driftText = "";
 
-// 条件スキルごとの達成確認
-for (const p of PARTS) {
-  const item = combo[p];
-  if (!item || !item.drift?.length) continue;
+if (driftEnabled) {
+  const usedDriftMap = {}; // {部位: 採用された錬成スキル名}
 
-  // この部位の錬成スキルのうち、検索条件に一致するものを抽出
-  const matched = item.drift.filter(ds =>
-    conds.some(c => c.skill === ds)
-  );
+  for (const p of PARTS) {
+    const item = combo[p];
+    if (!item || !item.drift?.length) continue;
 
-  // どれか1つでも条件に一致していれば、その部位ではそれが採用されたとみなす
-  // （同じ部位で複数HITしても1つだけ）
-  if (matched.length > 0) {
-    usedDriftMap[p] = matched[0];
+    // 条件に一致する錬成スキルを抽出
+    const matched = item.drift.filter(ds =>
+      conds.some(c => c.skill === ds)
+    );
+
+    // 部位ごとに最初にヒットしたスキルを採用
+    if (matched.length > 0) {
+      usedDriftMap[p] = matched[0];
+    }
+  }
+
+  // 表示用にまとめる
+  const driftAll = Object.entries(usedDriftMap).map(([part, skill]) => `${part}：${skill}`);
+  if (driftAll.length > 0) {
+    driftText = `<div class="drifts">錬成スキル：${driftAll.map(escapeHTML).join("、 ")}</div>`;
   }
 }
-
-// 表示用にまとめる
-for (const [part, skill] of Object.entries(usedDriftMap)) {
-  driftAll.push(`${part}：${skill}`);
-}
-
-const driftText = driftAll.length
-  ? `<div class="drifts">錬成スキル：${driftAll.map(escapeHTML).join("、 ")}</div>`
-  : "";
-
-
 
 
 // === カード出力 ===
@@ -768,6 +764,7 @@ window.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
+
 
 
 
