@@ -188,6 +188,19 @@
   }
 }
 
+/* ===== 一覧フィルター縦並び ===== */
+.list-controls.vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.list-controls.vertical select {
+  width: 100%;
+}
+
+
 
 </style>
 </head>
@@ -265,16 +278,6 @@
     </div>
   </div>
 </div>
-
-
-        <!-- 「錬成のみ」トグル -->
-        <div class="toggle-block" title="錬成スキルだけ表示" style="margin-top: 10px;">
-          <div class="dot blue off" id="toggleListDrift" aria-label="錬成フィルタ"></div>
-          <span class="hint">錬成のみ</span>
-        </div>
-      </div>
-    </div>
-  </aside>
 
   <main class="right">
     <!-- シミュレータ結果 -->
@@ -802,6 +805,7 @@ window.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
+
 
 
 
