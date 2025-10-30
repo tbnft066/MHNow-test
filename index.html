@@ -521,16 +521,28 @@ function runSearch(){
   }
 }
 
+    // 🔸 条件スキルのLvを満たしていない場合はスキップ
+let meetsAll = true;
+for (const c of conds) {
+  const haveLv = totalMap[c.skill] || 0;
+  if (haveLv < c.level) {
+    meetsAll = false;
+    break;
+  }
+}
+if (!meetsAll) continue;
+
+
 
     const comboKey = PARTS.map(p => combo[p]?.name || "").join("|");
     if (shownCombos.has(comboKey)) continue;
     shownCombos.add(comboKey);
 
     const text = PARTS.map(p => `${p}：${combo[p]?.name || ""}`).join("\n");
-    // スキルリストを条件一致に合わせて整形
+
+// スキルリストを条件一致に合わせて整形
 const skills = Object.entries(totalMap)
   .filter(([n]) => {
-    // 錬成スキルの場合は検索条件に一致したものだけ表示
     if (driftEnabled) {
       const isDriftSkill = armors.some(a => a.drift.includes(n));
       if (isDriftSkill && !conds.some(c => c.skill === n)) return false;
@@ -541,10 +553,53 @@ const skills = Object.entries(totalMap)
   .map(([n, l]) => `<li class="badge${conds.some(c => c.skill === n) ? " hilite" : ""}">${n} Lv${l}</li>`)
   .join("");
 
-
-    hits.push(`<h3>#${hits.length + 1}</h3><p class="equip">${text}</p><div class="hr"></div><ul class="sumAll">${skills}</ul>`);
-    if (hits.length >= 300) break outer;
+// 🟣 このコンボで実際に反映された錬成スキル一覧
+let driftApplied = [];
+if (driftEnabled) {
+  for (const p of PARTS) {
+    const item = combo[p];
+    if (!item) continue;
+    // 条件スキルに一致した錬成のみ表示
+    const matched = conds.find(c => item.drift.includes(c.skill));
+    if (matched) driftApplied.push(`${p}：${matched.skill}`);
   }
+}
+
+// 🟣 このコンボで実際に反映された錬成スキル一覧
+let driftApplied = [];
+if (driftEnabled) {
+  for (const p of PARTS) {
+    const item = combo[p];
+    if (!item) continue;
+    // 条件スキルに一致した錬成のみ表示
+    const matched = conds.find(c => item.drift.includes(c.skill));
+    if (matched) {
+      driftApplied.push({ part: p, skill: matched.skill });
+    }
+  }
+}
+
+// 🩵 錬成スキル表示を整形（部位名と一緒に）
+let driftText = "";
+if (driftApplied.length) {
+  const driftList = driftApplied
+    .map(d => `<span class="badge" style="color:var(--drift);border-color:var(--drift);">${d.part}：${d.skill}</span>`)
+    .join(" ");
+  driftText = `<div class="drifts">漂移錬成：${driftList}</div>`;
+}
+
+
+
+// 💡 最終出力
+hits.push(`
+  <h3>#${hits.length + 1}</h3>
+  <p class="equip">${text}</p>
+  <div class="hr"></div>
+  <ul class="sumAll">${skills}</ul>
+  ${driftText}
+`);
+
+
 
   // ===== スコアリング（スキル一致・Lv一致を最優先） =====
 const scoredHits = hits.map(html => {
@@ -846,6 +901,7 @@ window.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
+
 
 
 
