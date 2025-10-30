@@ -549,16 +549,47 @@ for (const [_, list] of activeParts) {
     shownCombos.add(comboKey);
 
     // === 出力構築 ===
-    const text = PARTS.map(p => `${p}：${combo[p]?.name || ""}`).join("\n");
-    const skills = Object.entries(totalMap)
-      .sort((a, b) => b[1] - a[1])
-      .map(([n, l]) => `<li class="badge${conds.some(c => c.skill === n) ? " hilite" : ""}">${n} Lv${l}</li>`)
-      .join("");
+const text = PARTS.map(p => `${p}：${combo[p]?.name || ""}`).join("\n");
 
-    hits.push(`<h3>#${hits.length + 1}</h3><p class="equip">${text}</p><div class="hr"></div><ul class="sumAll">${skills}</ul>`);
+// 通常スキルの合計表示
+const skills = Object.entries(totalMap)
+  .sort((a, b) => b[1] - a[1])
+  .map(([n, l]) => `<li class="badge${conds.some(c => c.skill === n) ? " hilite" : ""}">${n} Lv${l}</li>`)
+  .join("");
 
-    if (hits.length >= 300) break outer; // 安全ストップ
+// === 出力構築 ===
+const text = PARTS.map(p => `${p}：${combo[p]?.name || ""}`).join("\n");
+
+// 通常スキルの合計表示
+const skills = Object.entries(totalMap)
+  .sort((a, b) => b[1] - a[1])
+  .map(([n, l]) => `<li class="badge${conds.some(c => c.skill === n) ? " hilite" : ""}">${n} Lv${l}</li>`)
+  .join("");
+
+// ★ 部位ごとに錬成スキルを改行で表示
+let driftLines = [];
+for (const p of PARTS) {
+  const item = combo[p];
+  if (item && item.drift && item.drift.length) {
+    driftLines.push(`${p}：${item.drift.map(escapeHTML).join("、")}`);
   }
+}
+const driftText = driftLines.length
+  ? `<div class="drifts">${driftLines.join("<br>")}</div>`
+  : "";
+
+
+// === カード出力 ===
+hits.push(`
+  <h3>#${hits.length + 1}</h3>
+  <p class="equip">${text}</p>
+  <div class="hr"></div>
+  <ul class="sumAll">${skills}</ul>
+  ${driftText}
+`);
+
+if (hits.length >= 300) break outer; // 安全ストップ
+
 
  // === スコア算出して順位調整付きソート ===
 const scoredHits = hits.map(html => {
@@ -709,4 +740,5 @@ window.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
+
 
