@@ -156,428 +156,40 @@
 <script>
 /* ====== データ構造 ====== */
 const PARTS = ["頭","胴","腕","腰","脚"];
-let armors = []; // {part, monster, name, normal:[{name,lv}], drift:[string]}
+let armors = [];
 let skillSet = new Set();
-
-/* ====== トグル状態 ====== */
-let rockOnEnabled = false; // ロックオン（緑）
-let driftEnabled  = false; // 漂移錬成（紫）
-let listDriftOnly = false; // 一覧タブ 錬成のみ
+let rockOnEnabled = false;
+let driftEnabled  = false;
+let listDriftOnly = false;
 
 /* ====== 要素参照 ====== */
-const statusEl = document.getElementById('status');
-const resultsSim = document.getElementById('resultsSim');
-const resultsList = document.getElementById('resultsList');
-const panelSim = document.getElementById('panel-sim');
-const panelList = document.getElementById('panel-list');
-const panelMaker = document.getElementById('panel-maker');
-const tabSim = document.getElementById('tab-sim');
-const tabList = document.getElementById('tab-list');
-const tabMaker = document.getElementById('tab-maker');
+let statusEl, resultsSim, resultsList, panelSim, panelList, panelMaker;
+let tabSim, tabList, tabMaker, makerBody;
 
 /* ====== タブ切替 ====== */
 function showTab(which){
-  // tabs active
   [tabSim, tabList, tabMaker].forEach(b=>b.classList.remove('active'));
   if(which==='sim') tabSim.classList.add('active');
   if(which==='list') tabList.classList.add('active');
   if(which==='maker') tabMaker.classList.add('active');
-
-  // panels
   panelSim.style.display = (which==='sim')?'block':'none';
   panelList.style.display = (which==='list')?'block':'none';
   panelMaker.style.display= (which==='maker')?'block':'none';
-
-  // right side content
   resultsSim.style.display  = (which==='sim')?'grid':'none';
   resultsList.style.display = (which==='list')?'block':'none';
-
-  // mobile: 検索結果位置を調整
   adjustLayoutForMobile();
 }
-tabSim.addEventListener('click', ()=>showTab('sim'));
-tabList.addEventListener('click', ()=>showTab('list'));
-tabMaker.addEventListener('click', ()=>showTab('maker'));
 
-/* ====== トグル操作 ====== */
-const toggleRock  = document.getElementById('toggleRock');
-const toggleDrift = document.getElementById('toggleDrift');
-const toggleListDrift = document.getElementById('toggleListDrift');
-
-toggleRock.addEventListener('click', ()=>{
-  rockOnEnabled = !rockOnEnabled;
-  toggleRock.classList.toggle('on', rockOnEnabled);
-  toggleRock.classList.toggle('off', !rockOnEnabled);
-});
-toggleDrift.addEventListener('click', ()=>{
-  driftEnabled = !driftEnabled;
-  toggleDrift.classList.toggle('on', driftEnabled);
-  toggleDrift.classList.toggle('off', !driftEnabled);
-});
-toggleListDrift?.addEventListener('click', ()=>{
-  listDriftOnly = !listDriftOnly;
-  toggleListDrift.classList.toggle('on', listDriftOnly);
-  toggleListDrift.classList.toggle('off', !listDriftOnly);
-  buildListTable(); // 再描画
-});
-
-/* ====== CSVをページ上で読み込む ====== */
-document.getElementById('csv').addEventListener('change', (e)=>{
-  const f = e.target.files[0]; if(!f) return;
-  const reader = new FileReader();
-  reader.onload = ev => {
-    try{
-      parseCSV(ev.target.result);
-      statusEl.textContent = `CSV読み込み完了：${armors.length}件（スキル候補 ${skillSet.size}）`;
-      // 取り込んだ錬成をメーカーにも反映
-      populateMakerFromArmors();
-    }catch(err){
-      console.error(err);
-      statusEl.textContent = "CSV解析でエラーが発生しました。";
-    }
-  };
-  reader.readAsText(f, 'utf-8');
-});
-
-/* ====== CSV解析 ====== */
-function parseCSV(text){
-  const lines = text.replace(/\r\n/g,"\n").replace(/\r/g,"\n").split("\n").filter(Boolean);
-  const rows = lines.map(line => splitCsvLine(line));
-  armors = []; skillSet = new Set();
-
-  // ヘッダー前提
-  for(let i=1;i<rows.length;i++){
-    const r = rows[i];
-    if(r.length<3) continue;
-    const part = r[0], monster = r[1], name = r[2];
-    if(!part || !name) continue;
-
-    const normal = [];
-    for(let k=0;k<3;k++){
-      const s  = r[3 + k*2];
-      const lv = parseInt(r[4 + k*2],10);
-      if(s && !isNaN(lv) && lv>0){
-        normal.push({name:s, lv});
-        skillSet.add(s);
-      }
-    }
-    const drift = [];
-    for(let j=0;j<10;j++){
-      const ds = r[9 + j];
-      if(ds){
-        drift.push(ds);
-        skillSet.add(ds);
-      }
-    }
-    armors.push({part, monster, name, normal, drift});
-  }
-
-  buildSkillInputs([...skillSet].sort());
-  buildListTable(); // 一覧タブ初期描画
-}
-
-/* ====== CSV 1行パーサ（簡易, カンマ+ダブルクォート対応） ====== */
-function splitCsvLine(line){
-  const out=[]; let cur=""; let inQ=false;
-  for(let i=0;i<line.length;i++){
-    const ch=line[i];
-    if(ch==='"' ){
-      if(inQ && line[i+1]==='"'){ cur+='"'; i++; }
-      else inQ=!inQ;
-    }else if(ch===',' && !inQ){
-      out.push(cur.trim()); cur="";
-    }else{
-      cur+=ch;
-    }
-  }
-  out.push(cur.trim());
-  return out;
-}
-
-/* ====== シミュレータ入力UI（8枠、Lvはスキル名が空なら無効） ====== */
-function buildSkillInputs(skillList){
-  const rows = document.getElementById('rows');
-  rows.innerHTML = "";
-  const dlId="skills";
-  let old = document.getElementById(dlId); if(old) old.remove();
-  const dl = document.createElement('datalist'); dl.id = dlId;
-  skillList.forEach(s=>{ const o=document.createElement('option'); o.value=s; dl.appendChild(o); });
-  document.body.appendChild(dl);
-
-  for(let i=0;i<8;i++){
-    const name = document.createElement('input');
-    name.type="text"; name.placeholder="スキル名"; name.setAttribute("list", dlId); name.id=`s_${i}`;
-    const lv = document.createElement('input');
-    lv.type="number"; lv.min="1"; lv.max="5"; lv.placeholder="Lv"; lv.id=`lv_${i}`;
-    lv.disabled = true;
-
-    const syncDisable = ()=>{
-      const has = (name.value || "").trim().length > 0;
-      lv.disabled = !has;
-      if(!has) lv.value = "";
-    };
-    name.addEventListener('input', syncDisable);
-    name.addEventListener('change', syncDisable);
-
-    rows.appendChild(name); rows.appendChild(lv);
-  }
-
-  // クリック二重登録を避けるため置換
-  const newBtn = document.getElementById('search').cloneNode(true);
-  document.getElementById('search').replaceWith(newBtn);
-  newBtn.id = 'search';
-  newBtn.addEventListener('click', runSearch);
-}
-
-/* ====== リセットボタン ====== */
-document.getElementById('reset').addEventListener('click', ()=>{
-  for(let i=0;i<8;i++){
-    const sEl = document.getElementById(`s_${i}`);
-    const lEl = document.getElementById(`lv_${i}`);
-    if(sEl) sEl.value = "";
-    if(lEl){ lEl.value = ""; lEl.disabled = true; }
-  }
-  document.getElementById('progress').textContent = "";
-  document.getElementById('resultsSim').innerHTML = "";
-});
-
-/* ====== 検索本体 ====== */
-function runSearch(){
-  const resultsBox = resultsSim;
-  const progressEl = document.getElementById('progress');
-  const floatEl = document.getElementById('progressFloating');
-  resultsBox.innerHTML = "";
-  progressEl.textContent = "";
-
-  const shownCombos = new Set();
-  if (armors.length === 0) {
-    resultsBox.innerHTML = cardHTML("データ未読込", "CSVを読み込んでください。");
-    return;
-  }
-
-  // 条件取得
-  const conds = [];
-  for (let i = 0; i < 8; i++) {
-    const s = (document.getElementById(`s_${i}`)?.value || "").trim();
-    const lv = parseInt(document.getElementById(`lv_${i}`)?.value || "", 10);
-    if (s && !isNaN(lv) && lv > 0) conds.push({ skill: s, level: lv });
-  }
-  if (rockOnEnabled && !conds.some(c => c.skill === "ロックオン"))
-    conds.push({ skill: "ロックオン", level: 1 });
-
-  if (conds.length === 0) {
-    resultsBox.innerHTML = cardHTML("条件不足", "スキル名を入力してね。");
-    return;
-  }
-
-  // 条件スキルを含む防具だけ抽出（空き枠許容のため null を入れる）
-  const byPart = { 頭: [], 胴: [], 腕: [], 腰: [], 脚: [] };
-  for (const a of armors) {
-    if (
-      conds.some(c => a.normal.some(s => s.name === c.skill)) ||
-      (driftEnabled && conds.some(c => a.drift.includes(c.skill)))
-    ) {
-      byPart[a.part].push(a);
-    }
-  }
-  const activeParts = Object.entries(byPart).map(([p, v]) => [p, v.length>0 ? [...v, null] : [null]]);
-  // ソート（null対策）
-  for (const [_, list] of activeParts) {
-    list.sort((a, b) => {
-      const getCondLv = (armor) => {
-        if (!armor) return 0;
-        return conds.reduce((sum, c) => {
-          let n = armor.normal.find(s => s.name === c.skill)?.lv || 0;
-          let d = (driftEnabled && armor.drift.includes(c.skill)) ? 1 : 0;
-          return sum + n + d;
-        }, 0);
-      };
-      return getCondLv(b) - getCondLv(a);
-    });
-  }
-
-  function* generateCombos(parts, i = 0, current = {}) {
-    if (i >= parts.length) { yield current; return; }
-    const [p, items] = parts[i];
-    for (const it of items) yield* generateCombos(parts, i + 1, { ...current, [p]: it });
-  }
-
-  const hits = [];
-  let checked = 0;
-  floatEl.style.display = "block";
-
-  outer: for (const combo of generateCombos(activeParts)) {
-    checked++;
-    const totalMap = {};
-    for (const p of PARTS) {
-  const item = combo[p];
-  if (!item) continue;
-
-  // 通常スキルの加算
-  for (const { name, lv } of item.normal) {
-    totalMap[name] = (totalMap[name] || 0) + lv;
-  }
-
-  // 錬成スキル（drift）の処理
-  if (driftEnabled && item.drift.length > 0) {
-    // 検索条件に一致するスキルだけを1つ選ぶ
-    const matched = conds.find(c => item.drift.includes(c.skill));
-    if (matched) {
-      totalMap[matched.skill] = (totalMap[matched.skill] || 0) + 1;
-    } else {
-      // 一致しない場合はスキップ（その防具の錬成は無効）
-      continue;
-    }
-  }
-}
-
-    // 🔸 条件スキルのLvを満たしていない場合はスキップ
-let meetsAll = true;
-for (const c of conds) {
-  const haveLv = totalMap[c.skill] || 0;
-  if (haveLv < c.level) {
-    meetsAll = false;
-    break;
-  }
-}
-if (!meetsAll) continue;
-
-
-
-    const comboKey = PARTS.map(p => combo[p]?.name || "").join("|");
-    if (shownCombos.has(comboKey)) continue;
-    shownCombos.add(comboKey);
-
-    const text = PARTS.map(p => `${p}：${combo[p]?.name || ""}`).join("\n");
-
-// スキルリストを条件一致に合わせて整形
-const skills = Object.entries(totalMap)
-  .filter(([n]) => {
-    if (driftEnabled) {
-      const isDriftSkill = armors.some(a => a.drift.includes(n));
-      if (isDriftSkill && !conds.some(c => c.skill === n)) return false;
-    }
-    return true;
-  })
-  .sort((a, b) => b[1] - a[1])
-  .map(([n, l]) => `<li class="badge${conds.some(c => c.skill === n) ? " hilite" : ""}">${n} Lv${l}</li>`)
-  .join("");
-
-// 🟣 このコンボで実際に反映された錬成スキル一覧
-let driftApplied = [];
-if (driftEnabled) {
-  for (const p of PARTS) {
-    const item = combo[p];
-    if (!item) continue;
-    // 条件スキルに一致した錬成のみ表示
-    const matched = conds.find(c => item.drift.includes(c.skill));
-    if (matched) driftApplied.push(`${p}：${matched.skill}`);
-  }
-}
-
-// 🩵 錬成スキル表示を整形（部位名と一緒に）
-let driftText = "";
-if (driftApplied.length) {
-  const driftList = driftApplied
-    .map(d => `<span class="badge" style="color:var(--drift);border-color:var(--drift);">${d.part}：${d.skill}</span>`)
-    .join(" ");
-  driftText = `<div class="drifts">漂移錬成：${driftList}</div>`;
-}
-
-
-
-// 💡 最終出力
-hits.push(`
-  <h3>#${hits.length + 1}</h3>
-  <p class="equip">${text}</p>
-  <div class="hr"></div>
-  <ul class="sumAll">${skills}</ul>
-  ${driftText}
-`);
-
-
-
-  // ===== スコアリング（スキル一致・Lv一致を最優先） =====
-const scoredHits = hits.map(html => {
-  const lvMap = {};
-  const matches = [...html.matchAll(/([^<>\s]+) Lv(\d+)/g)];
-  for (const m of matches) {
-    const name = m[1], lv = parseInt(m[2]);
-    lvMap[name] = (lvMap[name] || 0) + lv;
-  }
-
-  // 条件スキル取得
-  const conds = [];
-  for (let i = 0; i < 8; i++) {
-    const s = (document.getElementById(`s_${i}`)?.value || "").trim();
-    const lv = parseInt(document.getElementById(`lv_${i}`)?.value || "", 10);
-    if (s && !isNaN(lv) && lv > 0) conds.push({ skill: s, level: lv });
-  }
-  if (rockOnEnabled && !conds.some(c => c.skill === "ロックオン"))
-    conds.push({ skill: "ロックオン", level: 1 });
-
-  let score = 0;
-
-  // 🟡 条件スキル一致の優先度を大幅アップ
-  for (const c of conds) {
-    const got = lvMap[c.skill] || 0;
-    if (got === 0) {
-      score -= 1000; // 該当スキルなしは強く減点
-    } else if (got === c.level) {
-      score += 2000; // Lv一致は最上位加点！
-    } else if (got > c.level) {
-      score += 1500 - (got - c.level) * 100; // 少し超過なら少し減点
-    } else {
-      score -= (c.level - got) * 300; // 足りないほど大きく減点
-    }
-  }
-
-  // 🟢 条件スキルがすべて揃っていない場合は強制減点
-  const missing = conds.filter(c => (lvMap[c.skill] || 0) === 0).length;
-  if (missing > 0) score -= 2000 * missing;
-
-  // 🟣 条件外スキルは軽く補助点
-  const otherSkills = Object.keys(lvMap).filter(n => !conds.some(c => c.skill === n));
-  score += otherSkills.length * 5;
-
-  // 💠 空き枠ボーナスは控えめに（影響を小さく）
-  const partsUsed = (html.match(/：[^<>\n]+/g) || []).filter(t => !/：\s*<\/?/.test(t)).length;
-  score += (5 - partsUsed) * 50;
-
-  return { html, score };
-});
-
-
-  scoredHits.sort((a, b) => b.score - a.score);
-  const topHits = scoredHits.slice(0, 50);
-
-  if (topHits.length === 0)
-    resultsBox.innerHTML = cardHTML("結果 0件", "条件に合う装備は見つかりませんでした。");
-  else
-    topHits.forEach(x => {
-      const div = document.createElement("div");
-      div.className = "card";
-      div.innerHTML = x.html;
-      resultsBox.appendChild(div);
-    });
-
-  const msg = `探索完了：${checked.toLocaleString()}件（ヒット ${hits.length}件）`;
-  progressEl.textContent = msg;
-  floatEl.textContent = msg;
-}
-
-/* ====== 一覧タブ：構築＆フィルタ ====== */
+/* ====== 一覧タブ構築 ====== */
 function buildListTable(){
   const body = document.getElementById('listBody');
   const countEl = document.getElementById('listCount');
   const fltPart = document.getElementById('flt-part');
   const fltSkill = document.getElementById('flt-skill');
-
   function render(){
     const kw = (fltSkill.value||"").trim();
     const part = fltPart.value||"";
     const rx = kw ? new RegExp(escapeRegExp(kw), 'i') : null;
-
     const list = armors.filter(a=>{
       if(part && a.part!==part) return false;
       if(listDriftOnly){
@@ -590,219 +202,115 @@ function buildListTable(){
         return rx.test(a.name) || rx.test(a.monster||"") || rx.test(normalStr) || rx.test(driftStr);
       }
     });
-
     body.innerHTML = list.map(a=>{
       const normalStr = a.normal.map(s=>`${escapeHTML(s.name)}Lv${s.lv}`).join(", ");
       const driftStr  = a.drift.length ? a.drift.map(escapeHTML).join(", ") : "—";
       return `<tr>
-        <td data-label="部位">${escapeHTML(a.part)}</td>
-        <td data-label="モンスター">${escapeHTML(a.monster||"")}</td>
-        <td data-label="防具名">${escapeHTML(a.name)}</td>
-        <td data-label="通常スキル" class="td-skills">${normalStr||"—"}</td>
-        <td data-label="錬成スキル" class="td-skills">${driftStr}</td>
+        <td>${escapeHTML(a.part)}</td>
+        <td>${escapeHTML(a.monster||"")}</td>
+        <td>${escapeHTML(a.name)}</td>
+        <td>${normalStr||"—"}</td>
+        <td>${driftStr}</td>
       </tr>`;
     }).join("");
-
-    countEl.textContent = `${list.length} 件表示（総計 ${armors.length}）` + (listDriftOnly ? "（錬成のみ）" : "");
+    countEl.textContent = `${list.length} 件表示（総計 ${armors.length}）`;
   }
   fltPart.addEventListener('change', render);
   fltSkill.addEventListener('input', render);
   render();
 }
 
-/* ====== 錬成CSV作成：行生成／削除 ====== */
-const makerBody = document.getElementById('makerBody');
-document.getElementById('makerAdd').addEventListener('click', ()=> addMakerRow());
-
-function addMakerRow(data = null){
+/* ====== 錬成CSV作成 ====== */
+function addMakerRow(data=null){
   const tr = document.createElement('tr');
-
   const tdPart = document.createElement('td');
   const sel = document.createElement('select');
   PARTS.forEach(p=>{ const o=document.createElement('option'); o.value=o.textContent=p; sel.appendChild(o); });
   tdPart.appendChild(sel);
-
-  const tdMon = document.createElement('td');
-  const inMon = document.createElement('input'); inMon.placeholder="モンスター名称";
-  tdMon.appendChild(inMon);
-
-  const tdName = document.createElement('td');
-  const inName = document.createElement('input'); inName.placeholder="防具名称";
-  tdName.appendChild(inName);
-
-  // 🟡 まず行順どおりに追加
-  tr.appendChild(tdPart);
-  tr.appendChild(tdMon);
-  tr.appendChild(tdName);
-
-  const driftInputs = [];
+  const tdMon = document.createElement('td'); const inMon=document.createElement('input'); tdMon.appendChild(inMon);
+  const tdName = document.createElement('td'); const inName=document.createElement('input'); tdName.appendChild(inName);
+  tr.append(tdPart,tdMon,tdName);
+  const driftInputs=[];
   for(let i=0;i<5;i++){
-    const td = document.createElement('td');
-    const inp = document.createElement('input');
-    inp.setAttribute('list','skills');
-    inp.placeholder = `錬成${i+1}`;
-    td.appendChild(inp);
-    tr.appendChild(td);
-    driftInputs.push(inp);
+    const td=document.createElement('td'); const inp=document.createElement('input');
+    inp.placeholder=`錬成${i+1}`; td.appendChild(inp); tr.appendChild(td); driftInputs.push(inp);
   }
-
-  const tdOps = document.createElement('td');
-  const del = document.createElement('button');
-  del.textContent="削除"; del.className='btnDanger';
-  del.addEventListener('click', ()=> tr.remove());
-  tdOps.appendChild(del);
-  tr.appendChild(tdOps);
-
+  const tdOps=document.createElement('td'); const del=document.createElement('button');
+  del.textContent="削除"; del.className='btnDanger'; del.onclick=()=>tr.remove();
+  tdOps.appendChild(del); tr.appendChild(tdOps);
   makerBody.appendChild(tr);
-}
-
-
-  // 既定値
   if(data){
-    sel.value = data.part || PARTS[0];
-    inMon.value = data.monster || "";
-    inName.value = data.name || "";
-    (data.drift||[]).slice(0,5).forEach((v,i)=>{ driftInputs[i].value = v; });
+    sel.value=data.part||PARTS[0]; inMon.value=data.monster||""; inName.value=data.name||"";
+    (data.drift||[]).slice(0,5).forEach((v,i)=>{ driftInputs[i].value=v; });
   }
 }
 
-/* ====== CSVダウンロード（錬成CSV作成タブ） ====== */
-document.getElementById('makerDownload').addEventListener('click', ()=>{
-  const rows = collectMakerRows();
-  const header = ['部位','モンスター名称','防具名称','スキル1','スキル1Lv','スキル2','スキル2Lv','スキル3','スキル3Lv','錬成1','錬成2','錬成3','錬成4','錬成5','錬成6','錬成7','錬成8','錬成9','錬成10'];
-  const csvLines = [ header.join(',') ];
-
-  rows.forEach(r=>{
-    const drifts = [...r.drift]; while(drifts.length<10) drifts.push('');
-    const line = [
-      r.part, r.monster, r.name,
-      '', '', '', '', '', '', // 通常スキルは空欄
-      ...drifts
-    ].map(csvEscape).join(',');
-    csvLines.push(line);
-  });
-
-  const blob = new Blob([csvLines.join('\n')], {type:'text/csv;charset=utf-8;'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = 'custom_drift.csv';
-  document.body.appendChild(a); a.click(); a.remove();
-  URL.revokeObjectURL(url);
-  statusEl.textContent = "錬成CSVをダウンロードしたよ！";
-});
-
-function collectMakerRows(){
-  const out=[];
-  [...makerBody.querySelectorAll('tr')].forEach(tr=>{
-    const part = tr.querySelector('select')?.value || PARTS[0];
-    const tds = tr.querySelectorAll('td');
-    const monster = tds[1].querySelector('input')?.value?.trim() || "";
-    const name    = tds[2].querySelector('input')?.value?.trim() || "";
-    if(!name) return; // 防具名必須
-    const drift=[];
-    // drift inputs は tds[3]..tds[7]
-    for(let i=3;i<=7;i++){
-      const v = tds[i].querySelector('input')?.value?.trim();
-      if(v) drift.push(v);
-    }
-    out.push({part, monster, name, drift});
-  });
-  return out;
-}
-function csvEscape(s){
-  const t = String(s??'');
-  return (t.includes(',') || t.includes('"') || t.includes('\n')) ? `"${t.replace(/"/g,'""')}"` : t;
-}
-
-/* ====== シミュレーターへ反映（錬成CSV作成タブ） ====== */
-document.getElementById('makerApply').addEventListener('click', ()=>{
-  const rows = collectMakerRows();
-  // 既存armorsへマージ。なければ作成。
-  for(const r of rows){
-    let a = armors.find(x => x.part===r.part && x.name===r.name && (x.monster||"")=== (r.monster||""));
-    if(!a){
-      a = {part:r.part, monster:r.monster||"", name:r.name, normal:[], drift:[]};
-      armors.push(a);
-    }
-    const set = new Set(a.drift);
-    r.drift.forEach(d => { if(d){ set.add(d); skillSet.add(d); } });
-    a.drift = [...set];
-  }
-  buildListTable();
-  buildSkillInputs([...skillSet].sort());
-  statusEl.textContent = "錬成内容をシミュレーターに反映したよ！";
-  // すぐ検索したい時のため、シミュレータタブへ
-  showTab('sim');
-});
-
-/* ====== 取り込んだCSVの錬成 → メーカーに反映 ====== */
+/* ====== 取り込み反映 ====== */
 function populateMakerFromArmors(){
-  makerBody.innerHTML = "";
-  // ドリフトありのものを行化（5個超は複数行に分割）
+  makerBody.innerHTML="";
   for(const a of armors){
-    if(!a.drift || a.drift.length===0) continue;
-    for(let i=0;i<a.drift.length; i+=5){
-      addMakerRow({
-        part:a.part, monster:a.monster||"", name:a.name,
-        drift:a.drift.slice(i, i+5)
-      });
+    if(!a.drift?.length) continue;
+    for(let i=0;i<a.drift.length;i+=5){
+      addMakerRow({part:a.part,monster:a.monster,name:a.name,drift:a.drift.slice(i,i+5)});
     }
   }
-  if(makerBody.children.length===0) addMakerRow(); // 0件なら空行
+  if(makerBody.children.length===0) addMakerRow();
 }
 
 /* ====== ユーティリティ ====== */
-function cardHTML(title, body){
-  return `<div class="card"><h3>${escapeHTML(title)}</h3><div class="hr"></div><div class="equip">${escapeHTML(body)}</div></div>`;
-}
-function escapeHTML(s){
-  return String(s).replace(/[&<>"']/g, m=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[m]));
-}
-function escapeRegExp(s){ return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
-
-/* ===== スマホ時は結果を検索ボタンの下に移動 ===== */
-function adjustLayoutForMobile() {
-  const resultsSim = document.getElementById("resultsSim");
-  const panelSim = document.getElementById("panel-sim");
-  if (window.innerWidth <= 640) {
-    if (!panelSim.contains(resultsSim)) {
-      panelSim.appendChild(resultsSim);
-      resultsSim.style.display = "block";
-    }
-  } else {
-    const right = document.querySelector(".right");
-    if (!right.contains(resultsSim)) {
-      right.prepend(resultsSim);
-      resultsSim.style.display = "grid";
-    }
+function escapeHTML(s){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));}
+function escapeRegExp(s){return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');}
+function adjustLayoutForMobile(){
+  const resultsSim=document.getElementById("resultsSim");
+  const panelSim=document.getElementById("panel-sim");
+  if(window.innerWidth<=640){
+    if(!panelSim.contains(resultsSim)){panelSim.appendChild(resultsSim);resultsSim.style.display="block";}
+  }else{
+    const right=document.querySelector(".right");
+    if(!right.contains(resultsSim)){right.prepend(resultsSim);resultsSim.style.display="grid";}
   }
 }
-window.addEventListener("resize", adjustLayoutForMobile);
+window.addEventListener("resize",adjustLayoutForMobile);
 
-// ✅ ページ読み込み後の初期処理（この位置でOK！）
-window.addEventListener('DOMContentLoaded', () => {
+/* ====== ページロード後初期化 ====== */
+window.addEventListener('DOMContentLoaded',()=>{
+  statusEl=document.getElementById('status');
+  resultsSim=document.getElementById('resultsSim');
+  resultsList=document.getElementById('resultsList');
+  panelSim=document.getElementById('panel-sim');
+  panelList=document.getElementById('panel-list');
+  panelMaker=document.getElementById('panel-maker');
+  tabSim=document.getElementById('tab-sim');
+  tabList=document.getElementById('tab-list');
+  tabMaker=document.getElementById('tab-maker');
+  makerBody=document.getElementById('makerBody');
+
+  tabSim.onclick=()=>showTab('sim');
+  tabList.onclick=()=>showTab('list');
+  tabMaker.onclick=()=>showTab('maker');
+
   showTab('sim');
   adjustLayoutForMobile();
 
-  // CSVの自動読み込み
-  fetch('スキル一覧.csv')
-    .then(res => res.text())
-    .then(text => {
-      parseCSV(text);
-      statusEl.textContent = `初期データ読込完了：${armors.length}件（スキル候補 ${skillSet.size}）`;
-      populateMakerFromArmors(); // 定義済みなのでOK
-    })
-    .catch(err => {
-      console.error('初期CSV読み込みエラー:', err);
-      statusEl.textContent = "初期CSV読み込みに失敗しました。";
-      addMakerRow(); // 定義済みなのでOK
-    });
+  document.getElementById('makerAdd').onclick=()=>addMakerRow();
 
-  // 初期空行
-  addMakerRow(); // 定義済みなのでOK
+  fetch('スキル一覧.csv')
+  .then(res=>res.text())
+  .then(text=>{
+    parseCSV(text);
+    statusEl.textContent=`初期データ読込完了：${armors.length}件`;
+    populateMakerFromArmors();
+  })
+  .catch(err=>{
+    console.error('初期CSV読み込みエラー:',err);
+    statusEl.textContent="初期CSV読み込みに失敗しました。";
+    addMakerRow();
+  });
+  addMakerRow();
 });
 </script>
 </body>
 </html>
+
 
 
