@@ -574,21 +574,29 @@ const skills = Object.entries(totalMap)
   .map(([n, l]) => `<li class="badge${conds.some(c => c.skill === n) ? " hilite" : ""}">${n} Lv${l}</li>`)
   .join("");
 
-// ★ 錬成スキル一覧を追加表示（検索対象スキルのみ）
+// ★ 錬成スキル一覧を追加表示（実際に条件達成に使われたスキルのみ）
 let driftAll = [];
+
 for (const p of PARTS) {
   const item = combo[p];
-  if (item && item.drift && item.drift.length) {
-    // 条件に含まれるスキルのみ抽出
-    const matched = item.drift.filter(ds => conds.some(c => c.skill === ds));
-    if (matched.length > 0) {
-      driftAll.push(...matched.map(ds => `${p}：${ds}`));
-    }
+  if (!item || !item.drift?.length) continue;
+
+  // この防具の錬成スキルのうち、条件に含まれていて
+  // かつ totalMap で条件を満たすのに実際に使われたものだけ表示
+  const matched = item.drift.filter(ds =>
+    conds.some(c => c.skill === ds && (totalMap[ds] || 0) >= c.level)
+  );
+
+  // もし条件スキルの中に存在していたら追加
+  if (matched.length > 0) {
+    driftAll.push(...matched.map(ds => `${p}：${ds}`));
   }
 }
+
 const driftText = driftAll.length
   ? `<div class="drifts">錬成スキル：${driftAll.map(escapeHTML).join("、 ")}</div>`
   : "";
+
 
 
 // === カード出力 ===
@@ -752,6 +760,7 @@ window.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
+
 
 
 
