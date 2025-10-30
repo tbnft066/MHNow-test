@@ -574,28 +574,36 @@ const skills = Object.entries(totalMap)
   .map(([n, l]) => `<li class="badge${conds.some(c => c.skill === n) ? " hilite" : ""}">${n} Lv${l}</li>`)
   .join("");
 
-// ★ 錬成スキル一覧を追加表示（実際に条件達成に使われたスキルのみ）
+// ★ 錬成スキル一覧を追加表示（各部位で採用された錬成スキルのみ表示）
 let driftAll = [];
+const usedDriftMap = {}; // {部位: 採用された錬成スキル名}
 
+// 条件スキルごとの達成確認
 for (const p of PARTS) {
   const item = combo[p];
   if (!item || !item.drift?.length) continue;
 
-  // この防具の錬成スキルのうち、条件に含まれていて
-  // かつ totalMap で条件を満たすのに実際に使われたものだけ表示
+  // この部位の錬成スキルのうち、検索条件に一致するものを抽出
   const matched = item.drift.filter(ds =>
-    conds.some(c => c.skill === ds && (totalMap[ds] || 0) >= c.level)
+    conds.some(c => c.skill === ds)
   );
 
-  // もし条件スキルの中に存在していたら追加
+  // どれか1つでも条件に一致していれば、その部位ではそれが採用されたとみなす
+  // （同じ部位で複数HITしても1つだけ）
   if (matched.length > 0) {
-    driftAll.push(...matched.map(ds => `${p}：${ds}`));
+    usedDriftMap[p] = matched[0];
   }
+}
+
+// 表示用にまとめる
+for (const [part, skill] of Object.entries(usedDriftMap)) {
+  driftAll.push(`${part}：${skill}`);
 }
 
 const driftText = driftAll.length
   ? `<div class="drifts">錬成スキル：${driftAll.map(escapeHTML).join("、 ")}</div>`
   : "";
+
 
 
 
@@ -760,6 +768,7 @@ window.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
+
 
 
 
