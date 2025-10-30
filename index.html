@@ -729,22 +729,17 @@ function buildListTable(){
       if (monVal && a.monster !== monVal) return false;
 
       if (listDriftOnly) {
-        // 錬成スキルのみ
         if (skillVal) {
           return a.drift.includes(skillVal);
         }
         return a.drift.length > 0;
       } else {
         if (!skillVal) return true;
-        const allSkills = [
-          ...a.normal.map(s => s.name),
-          ...a.drift
-        ];
+        const allSkills = [...a.normal.map(s => s.name), ...a.drift];
         return allSkills.includes(skillVal);
       }
     });
 
-    // === テーブル描画 ===
     body.innerHTML = list.map(a=>{
       const normalStr = a.normal.map(s=>`${escapeHTML(s.name)}Lv${s.lv}`).join(", ");
       const driftStr  = a.drift.length ? a.drift.map(escapeHTML).join(", ") : "—";
@@ -752,8 +747,8 @@ function buildListTable(){
         <td data-label="部位">${escapeHTML(a.part)}</td>
         <td data-label="モンスター">${escapeHTML(a.monster||"")}</td>
         <td data-label="防具名">${escapeHTML(a.name)}</td>
-        <td data-label="通常スキル" class="td-skills">${normalStr||"—"}</td>
-        <td data-label="錬成スキル" class="td-skills">${driftStr}</td>
+        <td data-label="通常スキル">${normalStr||"—"}</td>
+        <td data-label="錬成スキル">${driftStr}</td>
       </tr>`;
     }).join("");
 
@@ -769,11 +764,6 @@ function buildListTable(){
   render();
 }
 
-  fltPart.addEventListener('change', render);
-  fltMonster.addEventListener('change', render);
-  fltSkill.addEventListener('change', render);
-  render();
-}
 
 
 /* ====== ユーティリティ ====== */
