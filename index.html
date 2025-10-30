@@ -875,23 +875,26 @@ window.addEventListener('DOMContentLoaded', () => {
   adjustLayoutForMobile();
   // 置いてある初期CSVを読み込む場合は有効化してね
   fetch('スキル一覧.csv')
-  .then(res => res.text())
-  .then(text => {
-    parseCSV(text);
-    statusEl.textContent = `初期データ読込完了：${armors.length}件（スキル候補 ${skillSet.size}）`;
-    populateMakerFromArmors();
-  })
-  .catch(err => {
-    console.error('初期CSV読み込みエラー:', err);
-    statusEl.textContent = "初期CSV読み込みに失敗しました。";
-    addMakerRow();
-  });
+    .then(res => res.text())
+    .then(text => {
+      parseCSV(text);
+      statusEl.textContent = `初期データ読込完了：${armors.length}件（スキル候補 ${skillSet.size}）`;
+      populateMakerFromArmors();
+    })
+    .catch(err => {
+      console.error('初期CSV読み込みエラー:', err);
+      statusEl.textContent = "初期CSV読み込みに失敗しました。";
+      addMakerRow();
+    });
+
   // 初期は空のメーカーに1行だけ
   addMakerRow();
-});
+});  // ← これが抜けてた！！
 </script>
 </body>
 </html>
+
+
 
 
 
