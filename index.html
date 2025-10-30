@@ -609,22 +609,6 @@ if (driftEnabled) {
 }
 
 
-  // 表示構築（全5部位を縦並びで表示）
-  const driftLines = PARTS.map(p => {
-    const skill = usedDriftMap[p] ? escapeHTML(usedDriftMap[p]) : "";
-    return `<div>${p}：${skill}</div>`;
-  }).join("");
-
-  driftText = `
-    <div class="drifts">
-      <div style="margin-top:4px;">錬成スキル：</div>
-      <div style="margin-top:2px; line-height:1.4;">${driftLines}</div>
-    </div>
-  `;
-}
-
-
-
 // === カード出力 ===
 hits.push(`
   <h3>#${hits.length + 1}</h3>
@@ -786,6 +770,7 @@ window.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
+
 
 
 
