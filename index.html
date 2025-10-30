@@ -139,6 +139,18 @@
     background: #141414;
   }
 
+  /* ===== 一覧フィルター縦並び ===== */
+.list-controls.vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.list-controls.vertical select {
+  width: 100%;
+}
+
 /* ===== スマホ表示時の防具一覧（カード形式） ===== */
 @media (max-width: 640px) {
   body {
@@ -188,17 +200,7 @@
   }
 }
 
-/* ===== 一覧フィルター縦並び ===== */
-.list-controls.vertical {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  align-items: stretch;
-}
 
-.list-controls.vertical select {
-  width: 100%;
-}
 
 
 
